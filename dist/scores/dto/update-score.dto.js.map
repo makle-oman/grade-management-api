@@ -1,0 +1,1 @@
+{"version":3,"file":"update-score.dto.js","sourceRoot":"","sources":["../../../src/scores/dto/update-score.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAkE;AAElE,MAAa,cAAc;CAQ1B;AARD,wCAQC;AALC;IAFC,IAAA,4BAAU,GAAE;IACZ,IAAA,0BAAQ,EAAC,EAAE,EAAE,EAAE,OAAO,EAAE,SAAS,EAAE,CAAC;;6CACtB;AAIf;IAFC,IAAA,4BAAU,GAAE;IACZ,IAAA,2BAAS,EAAC,EAAE,OAAO,EAAE,YAAY,EAAE,CAAC;;gDAClB"}
