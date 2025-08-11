@@ -9,9 +9,10 @@ enum ExamStatus {
 }
 
 enum ExamType {
+  UNIT_PRACTICE = 'unit_practice',
+  UNIT_TEST = 'unit_test',
   MIDTERM = 'midterm',
   FINAL = 'final',
-  QUIZ = 'quiz',
   OTHER = 'other',
 }
 
