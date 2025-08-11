@@ -3,6 +3,18 @@
 /node_modules
 /build
 
+# JavaScript compiled files
+*.js
+*.js.map
+*.ts.map
+
+# Keep important JS files (if needed)
+!jest.config.js
+!commitlint.config.js
+
+# TypeScript incremental compilation
+*.tsbuildinfo
+
 # Logs
 logs
 *.log
