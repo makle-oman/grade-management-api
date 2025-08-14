@@ -4,6 +4,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { StudentsModule } from './students/students.module';
 import { ExamsModule } from './exams/exams.module';
 import { ScoresModule } from './scores/scores.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { SemestersModule } from './semesters/semesters.module';
+import { StatisticsModule } from './statistics/statistics.module';
+import { ClassesModule } from './classes/classes.module';
 import { join } from 'path';
 
 @Module({
@@ -21,9 +26,14 @@ import { join } from 'path';
         synchronize: configService.get<boolean>('DB_SYNC', true),
       }),
     }),
+    AuthModule,
+    UsersModule,
+    SemestersModule,
+    ClassesModule,
     StudentsModule,
     ExamsModule,
     ScoresModule,
+    StatisticsModule,
   ],
 })
 export class AppModule {}

@@ -1,5 +1,7 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Score } from './score.entity';
+import { User } from './user.entity';
+import { Semester } from './semester.entity';
 
 @Entity('exams')
 export class Exam {
@@ -27,9 +29,23 @@ export class Exam {
   @Column({ default: 'not_started' })
   status: string;
 
+  @Column({ name: 'teacher_id', nullable: true })
+  teacherId: string;
+
+  @Column({ name: 'semester_id', nullable: true })
+  semesterId: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @OneToMany(() => Score, score => score.exam)
   scores: Score[];
+
+  @ManyToOne(() => User, user => user.exams)
+  @JoinColumn({ name: 'teacher_id' })
+  teacher: User;
+
+  @ManyToOne(() => Semester, semester => semester.exams)
+  @JoinColumn({ name: 'semester_id' })
+  semester: Semester;
 }

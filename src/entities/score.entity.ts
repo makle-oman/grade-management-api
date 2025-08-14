@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Student } from './student.entity';
 import { Exam } from './exam.entity';
+import { User } from './user.entity';
 
 @Entity('scores')
 export class Score {
@@ -12,6 +13,9 @@ export class Score {
 
   @Column({ name: 'exam_id' })
   examId: string;
+  
+  @Column({ name: 'user_id', nullable: true })
+  userId: string;
 
   @Column({ nullable: true })
   score: number;
@@ -35,4 +39,8 @@ export class Score {
   @ManyToOne(() => Exam, exam => exam.scores, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'exam_id' })
   exam: Exam;
+  
+  @ManyToOne(() => User, user => user.scores)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 }

@@ -4,6 +4,7 @@ export declare class CreateExamDto {
     className: string;
     examDate: Date;
     totalScore: number;
+    semesterId?: string;
     examType?: string;
     status?: string;
 }

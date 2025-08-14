@@ -5,11 +5,19 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 export declare class StudentsController {
     private readonly studentsService;
     constructor(studentsService: StudentsService);
-    findAll(): Promise<Student[]>;
-    findOne(id: string): Promise<Student>;
-    findByClass(className: string): Promise<Student[]>;
-    create(createStudentDto: CreateStudentDto): Promise<Student>;
-    update(id: string, updateStudentDto: UpdateStudentDto): Promise<Student>;
-    remove(id: string): Promise<void>;
-    importMany(students: CreateStudentDto[]): Promise<Student[]>;
+    findAll(req: any): Promise<Student[]>;
+    findAllIncludingInactive(req: any): Promise<Student[]>;
+    findByTeacher(teacherId: string): Promise<Student[]>;
+    findByClass(className: string, req: any): Promise<Student[]>;
+    findByClassId(classId: string, req: any): Promise<Student[]>;
+    findOne(id: string, req: any): Promise<Student>;
+    create(createStudentDto: CreateStudentDto, req: any): Promise<Student>;
+    update(id: string, updateStudentDto: UpdateStudentDto, req: any): Promise<Student>;
+    remove(id: string, req: any): Promise<void>;
+    batchRemove(ids: string, req: any): Promise<void>;
+    importMany(students: CreateStudentDto[], req: any): Promise<Student[]>;
+    batchAssociateClasses(): Promise<{
+        message: string;
+        updated: number;
+    }>;
 }

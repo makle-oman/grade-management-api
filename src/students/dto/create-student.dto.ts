@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsNumber } from 'class-validator';
 
 export class CreateStudentDto {
   @IsNotEmpty({ message: '姓名不能为空' })
@@ -12,4 +12,8 @@ export class CreateStudentDto {
   @IsNotEmpty({ message: '班级不能为空' })
   @IsString({ message: '班级必须是字符串' })
   className: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: '班级ID必须是数字' })
+  classId?: number;
 }

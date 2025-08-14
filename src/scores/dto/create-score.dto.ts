@@ -16,4 +16,8 @@ export class CreateScoreDto {
   @IsOptional()
   @IsBoolean({ message: '缺考标记必须是布尔值' })
   isAbsent?: boolean = false;
+  
+  @IsOptional()
+  @IsString({ message: '用户ID必须是字符串' })
+  userId?: string;
 }

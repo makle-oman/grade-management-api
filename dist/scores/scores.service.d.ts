@@ -9,13 +9,13 @@ export declare class ScoresService {
     private examsService;
     private studentsService;
     constructor(scoresRepository: Repository<Score>, examsService: ExamsService, studentsService: StudentsService);
-    findAll(): Promise<Score[]>;
-    findOne(id: string): Promise<Score>;
-    findByExam(examId: string): Promise<Score[]>;
-    findByStudent(studentId: string): Promise<Score[]>;
+    findAll(userId?: string, userRole?: string): Promise<Score[]>;
+    findOne(id: string, userId?: string, userRole?: string): Promise<Score>;
+    findByExam(examId: string, userId?: string, userRole?: string): Promise<Score[]>;
+    findByStudent(studentId: string, userId?: string, userRole?: string): Promise<Score[]>;
     create(createScoreDto: CreateScoreDto): Promise<Score>;
-    update(id: string, updateScoreDto: UpdateScoreDto): Promise<Score>;
-    remove(id: string): Promise<void>;
+    update(id: string, updateScoreDto: UpdateScoreDto, userId?: string): Promise<Score>;
+    remove(id: string, userId?: string): Promise<void>;
     importScores(scores: CreateScoreDto[]): Promise<Score[]>;
-    calculateRanks(examId: string): Promise<void>;
+    calculateRanks(examId: string, userId?: string): Promise<void>;
 }

@@ -3,20 +3,53 @@ import { AppModule } from './app.module';
 import { StudentsService } from './students/students.service';
 import { ExamsService } from './exams/exams.service';
 import { ScoresService } from './scores/scores.service';
+import { SemestersService } from './semesters/semesters.service';
+import { UsersService } from './users/users.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const studentsService = app.get(StudentsService);
   const examsService = app.get(ExamsService);
   const scoresService = app.get(ScoresService);
+  const semestersService = app.get(SemestersService);
+  const usersService = app.get(UsersService);
+  
+  // 获取教师用户ID
+  const teacher = await usersService.findByUsername('teacher1');
+  const teacherId = teacher ? teacher.id : null;
+  
+  if (!teacherId) {
+    console.error('找不到teacher1用户，请先运行用户种子数据');
+    await app.close();
+    return;
+  }
 
   // 检查是否已有数据
   const existingStudents = await studentsService.findAll();
   const existingExams = await examsService.findAll();
   const existingScores = await scoresService.findAll();
+  const existingSemesters = await semestersService.findAll();
   
   let students = existingStudents;
   let exams = existingExams;
+  let semesters = existingSemesters;
+  
+  // 创建学期数据
+  if (existingSemesters.length === 0) {
+    console.log('开始创建学期数据...');
+    semesters = await Promise.all([
+      semestersService.create({
+        name: '2024年春季学期',
+        schoolYear: '2023-2024',
+        startDate: '2024-02-01',
+        endDate: '2024-07-31',
+        isCurrent: true,
+      }),
+    ]);
+    console.log(`创建了 ${semesters.length} 个学期`);
+  } else {
+    console.log(`数据库中已有 ${existingSemesters.length} 个学期，跳过创建学期...`);
+  }
   
   if (existingStudents.length === 0) {
     // 创建学生数据
@@ -26,27 +59,27 @@ async function bootstrap() {
         name: '张三',
         studentNumber: '2023001',
         className: '高三一班',
-      }),
+      }, teacherId),
       studentsService.create({
         name: '李四',
         studentNumber: '2023002',
         className: '高三一班',
-      }),
+      }, teacherId),
       studentsService.create({
         name: '王五',
         studentNumber: '2023003',
         className: '高三一班',
-      }),
+      }, teacherId),
       studentsService.create({
         name: '赵六',
         studentNumber: '2023004',
         className: '高三二班',
-      }),
+      }, teacherId),
       studentsService.create({
         name: '钱七',
         studentNumber: '2023005',
         className: '高三二班',
-      }),
+      }, teacherId),
     ]);
     console.log(`创建了 ${students.length} 名学生`);
   } else {
@@ -56,43 +89,40 @@ async function bootstrap() {
   if (existingExams.length === 0) {
     // 创建考试数据
     console.log('开始创建考试数据...');
+    const currentSemester = semesters[0];
     exams = await Promise.all([
       examsService.create({
         name: '期中考试',
         subject: '数学',
         className: '高三一班',
-        examDate: new Date('2023-10-15'),
+        examDate: new Date('2024-04-15'),
         totalScore: 150,
-        examType: 'midterm',
-        status: 'completed',
-      }),
+        semesterId: currentSemester.id,
+      }, teacherId),
       examsService.create({
         name: '期末考试',
         subject: '数学',
         className: '高三一班',
-        examDate: new Date('2023-12-20'),
+        examDate: new Date('2024-06-20'),
         totalScore: 150,
-        examType: 'final',
-        status: 'completed',
-      }),
+        semesterId: currentSemester.id,
+      }, teacherId),
       examsService.create({
         name: '期中考试',
         subject: '语文',
         className: '高三一班',
-        examDate: new Date('2023-10-16'),
+        examDate: new Date('2024-04-16'),
         totalScore: 150,
-        examType: 'midterm',
-        status: 'completed',
-      }),
+        semesterId: currentSemester.id,
+      }, teacherId),
       examsService.create({
         name: '期中考试',
         subject: '数学',
         className: '高三二班',
-        examDate: new Date('2023-10-15'),
+        examDate: new Date('2024-04-15'),
         totalScore: 150,
-        examType: 'midterm',
-        status: 'completed',
-      }),
+        semesterId: currentSemester.id,
+      }, teacherId),
     ]);
     console.log(`创建了 ${exams.length} 场考试`);
   } else {
@@ -165,13 +195,15 @@ async function bootstrap() {
       }
       
       // 批量保存成绩
-      const createdScores = await scoresService.importScores(scores);
-      console.log(`创建了 ${createdScores.length} 条成绩记录`);
-      
-      // 计算排名
-      for (const exam of exams) {
-        await scoresService.calculateRanks(exam.id);
-        console.log(`已计算考试 ${exam.name} - ${exam.subject} 的排名`);
+      if (scores.length > 0) {
+        const createdScores = await scoresService.importScores(scores);
+        console.log(`创建了 ${createdScores.length} 条成绩记录`);
+        
+        // 计算排名
+        for (const exam of exams) {
+          await scoresService.calculateRanks(exam.id);
+          console.log(`已计算考试 ${exam.name} - ${exam.subject} 的排名`);
+        }
       }
     } else {
       console.log('没有足够的学生或考试数据，跳过创建成绩...');

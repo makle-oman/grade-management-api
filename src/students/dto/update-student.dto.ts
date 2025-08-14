@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsNumber } from 'class-validator';
 
 export class UpdateStudentDto {
   @IsOptional()
@@ -12,4 +12,12 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsString({ message: '班级必须是字符串' })
   className?: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: '班级ID必须是数字' })
+  classId?: number;
+
+  @IsOptional()
+  @IsString({ message: '教师ID必须是字符串' })
+  teacherId?: string;
 }

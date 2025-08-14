@@ -4,6 +4,8 @@ export declare class UpdateExamDto {
     className?: string;
     examDate?: Date;
     totalScore?: number;
+    semesterId?: string;
+    teacherId?: string;
     examType?: string;
     status?: string;
 }

@@ -3,4 +3,5 @@ export declare class CreateScoreDto {
     examId: string;
     score?: number;
     isAbsent?: boolean;
+    userId?: string;
 }

@@ -39,6 +39,10 @@ export class CreateExamDto {
   totalScore: number;
 
   @IsOptional()
+  @IsString({ message: '学期ID必须是字符串' })
+  semesterId?: string;
+
+  @IsOptional()
   @IsEnum(ExamType, { message: '考试类型不正确' })
   examType?: string = ExamType.OTHER;
 

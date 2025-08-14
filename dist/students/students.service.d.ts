@@ -1,15 +1,27 @@
 import { Repository } from 'typeorm';
 import { Student } from '../entities/student.entity';
+import { Class } from '../entities/class.entity';
+import { User } from '../entities/user.entity';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { UserRole } from '../entities/user.entity';
 export declare class StudentsService {
     private studentsRepository;
-    constructor(studentsRepository: Repository<Student>);
-    findAll(): Promise<Student[]>;
-    findOne(id: string): Promise<Student>;
-    findByClass(className: string): Promise<Student[]>;
-    create(createStudentDto: CreateStudentDto): Promise<Student>;
-    update(id: string, updateStudentDto: UpdateStudentDto): Promise<Student>;
-    remove(id: string): Promise<void>;
-    importMany(students: CreateStudentDto[]): Promise<Student[]>;
+    private classRepository;
+    private userRepository;
+    constructor(studentsRepository: Repository<Student>, classRepository: Repository<Class>, userRepository: Repository<User>);
+    private findOrCreateClass;
+    private addClassToTeacher;
+    findAll(userId?: string, userRole?: UserRole, userClassNames?: string[]): Promise<Student[]>;
+    findOne(id: string, userId?: string, userRole?: UserRole): Promise<Student>;
+    findByClass(className: string, userId?: string, userRole?: UserRole, userClassNames?: string[]): Promise<Student[]>;
+    findByClassId(classId: number, userId?: string, userRole?: UserRole, userClassNames?: string[]): Promise<Student[]>;
+    findByTeacher(teacherId: string): Promise<Student[]>;
+    create(createStudentDto: CreateStudentDto, teacherId?: string): Promise<Student>;
+    update(id: string, updateStudentDto: UpdateStudentDto, userId?: string, userRole?: UserRole): Promise<Student>;
+    remove(id: string, userId?: string, userRole?: UserRole): Promise<void>;
+    batchRemove(ids: string[], userId?: string, userRole?: UserRole): Promise<void>;
+    importMany(students: CreateStudentDto[], teacherId: string): Promise<Student[]>;
+    findAllIncludingInactive(userId?: string, userRole?: UserRole, userClassNames?: string[]): Promise<Student[]>;
+    batchAssociateToClasses(): Promise<number>;
 }
