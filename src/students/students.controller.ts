@@ -82,9 +82,13 @@ export class StudentsController {
   }
 
   @Post('import')
-  async importMany(@Body() students: CreateStudentDto[], @Request() req): Promise<Student[]> {
+  async importMany(
+    @Body() students: CreateStudentDto[], 
+    @Request() req,
+    @Query('classId') classId?: string
+  ): Promise<Student[]> {
     const { userId } = req.user;
-    return this.studentsService.importMany(students, userId);
+    return this.studentsService.importMany(students, userId, classId ? parseInt(classId) : undefined);
   }
 
   // 新增：批量关联学生到班级

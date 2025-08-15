@@ -1,12 +1,14 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Student } from '../entities/student.entity';
 import { Class } from '../entities/class.entity';
 import { User } from '../entities/user.entity';
+import { Score } from '../entities/score.entity';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { UserRole } from '../entities/user.entity';
+import { normalizeClassName, extractGradeFromClassName, parseClassName } from '../utils/classNameUtils';
 
 @Injectable()
 export class StudentsService {
@@ -17,34 +19,107 @@ export class StudentsService {
     private classRepository: Repository<Class>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Score)
+    private scoreRepository: Repository<Score>,
   ) {}
 
   private async findOrCreateClass(className: string, teacherId?: string): Promise<Class> {
-    // 先查找是否已存在该班级
+    if (!className) {
+      throw new BadRequestException('班级名称不能为空');
+    }
+    
+    // 标准化班级名称格式
+    const normalizedClassName = normalizeClassName(className);
+    
+    // 如果提供了教师ID，先检查教师关联的班级
+    if (teacherId) {
+      const teacher = await this.userRepository.findOne({
+        where: { id: teacherId }
+      });
+      
+      if (teacher && teacher.classNames) {
+        // 解析教师的班级列表
+        let teacherClassNames: string[] = [];
+        try {
+          teacherClassNames = JSON.parse(teacher.classNames);
+        } catch (e) {
+          teacherClassNames = teacher.classNames.split(',');
+        }
+        
+        // 检查教师的班级列表中是否有匹配的班级
+        for (const teacherClassName of teacherClassNames) {
+          // 标准化教师班级名称
+          const normalizedTeacherClassName = normalizeClassName(teacherClassName);
+          
+          // 如果标准化后的名称匹配，查找对应的班级实体
+          if (normalizedTeacherClassName === normalizedClassName) {
+            const existingClass = await this.classRepository.findOne({
+              where: { name: normalizedTeacherClassName }
+            });
+            
+            if (existingClass) {
+              console.log(`使用教师关联的班级: ${normalizedTeacherClassName} (ID: ${existingClass.id})`);
+              return existingClass;
+            }
+          }
+        }
+      }
+    }
+    
+    // 先查找是否已存在该班级（使用标准化名称）
     let classEntity = await this.classRepository.findOne({
-      where: { name: className }
+      where: { name: normalizedClassName }
     });
-
+    
+    // 如果没找到，尝试使用原始名称查找
+    if (!classEntity && className !== normalizedClassName) {
+      classEntity = await this.classRepository.findOne({
+        where: { name: className }
+      });
+    }
+    
+    // 如果还是没找到，尝试解析班级名称的结构，然后查找可能匹配的班级
     if (!classEntity) {
-      // 如果不存在，则创建新班级
-      // 从班级名称中提取年级信息，如"六（2）班" -> "六年级"
-      const gradeMatch = className.match(/^([一二三四五六七八九十]+)/);
-      const grade = gradeMatch ? `${gradeMatch[1]}年级` : '未知年级';
+      const { grade, classNumber } = parseClassName(className);
+      const possibleClassNames = [
+        `${grade}-${classNumber}`,                      // 1-1 格式
+        `（${classNumber}）班`,                         // （1）班 格式
+        `(${classNumber}) 班`,                          // (1) 班 格式
+        `${grade}（${classNumber}）班`,                 // 1（1）班 格式
+        `${grade}年级${classNumber}班`                  // 1年级1班 格式
+      ];
+      
+      // 查找可能匹配的班级
+      for (const possibleName of possibleClassNames) {
+        const possibleClass = await this.classRepository.findOne({
+          where: { name: possibleName }
+        });
+        if (possibleClass) {
+          classEntity = possibleClass;
+          break;
+        }
+      }
+    }
+
+    // 如果仍然没有找到匹配的班级，则创建新班级
+    if (!classEntity) {
+      // 从班级名称中提取年级信息
+      const grade = extractGradeFromClassName(normalizedClassName);
       
       classEntity = this.classRepository.create({
-        name: className,
+        name: normalizedClassName,
         grade: grade,
-        description: `自动创建的班级：${className}`,
+        description: `自动创建的班级：${normalizedClassName}`,
         isActive: true
       });
       
       classEntity = await this.classRepository.save(classEntity);
-      console.log(`自动创建班级: ${className} (ID: ${classEntity.id})`);
-      
-      // 如果提供了教师ID，将新创建的班级添加到教师的班级列表中
-      if (teacherId) {
-        await this.addClassToTeacher(teacherId, className);
-      }
+      console.log(`自动创建班级: ${normalizedClassName} (ID: ${classEntity.id})`);
+    }
+    
+    // 如果提供了教师ID，将班级添加到教师的班级列表中
+    if (teacherId) {
+      await this.addClassToTeacher(teacherId, classEntity.name);
     }
 
     return classEntity;
@@ -215,6 +290,11 @@ export class StudentsService {
 
   async remove(id: string, userId?: string, userRole?: UserRole): Promise<void> {
     const student = await this.findOne(id, userId, userRole);
+    
+    // 先删除学生相关的成绩记录
+    await this.scoreRepository.delete({ studentId: id });
+    
+    // 再删除学生
     await this.studentsRepository.remove(student);
   }
 
@@ -224,18 +304,43 @@ export class StudentsService {
       await this.findOne(id, userId, userRole);
     }
     
-    // 批量删除
+    // 先删除所有学生相关的成绩记录
+    for (const id of ids) {
+      await this.scoreRepository.delete({ studentId: id });
+    }
+    
+    // 批量删除学生
     await this.studentsRepository.delete(ids);
   }
 
-  async importMany(students: CreateStudentDto[], teacherId: string): Promise<Student[]> {
+  async importMany(students: CreateStudentDto[], teacherId: string, selectedClassId?: number): Promise<Student[]> {
     const results: Student[] = [];
+    
+    // 如果提供了班级ID，获取班级信息
+    let selectedClass = null;
+    if (selectedClassId) {
+      selectedClass = await this.classRepository.findOne({
+        where: { id: selectedClassId }
+      });
+      
+      if (!selectedClass) {
+        throw new NotFoundException(`班级ID ${selectedClassId} 不存在`);
+      }
+    }
     
     // 逐个处理每个学生，避免批量操作时的唯一约束冲突
     for (const studentDto of students) {
       try {
-        // 自动查找或创建班级，并将班级关联到当前教师
-        const classEntity = await this.findOrCreateClass(studentDto.className, teacherId);
+        // 使用前端选择的班级，而不是从模板中读取班级信息
+        let classEntity = selectedClass;
+        
+        // 如果没有提供班级ID，但学生DTO中有班级名称，则尝试查找或创建班级
+        if (!classEntity && studentDto.className) {
+          classEntity = await this.findOrCreateClass(studentDto.className, teacherId);
+        } else if (!classEntity) {
+          // 如果既没有提供班级ID，学生DTO中也没有班级名称，则抛出错误
+          throw new BadRequestException('必须提供班级信息');
+        }
         
         // 检查是否已存在相同学号和姓名的学生（在同一班级内检查）
         const existingStudentWithSameNumberAndName = await this.studentsRepository.findOne({
@@ -306,6 +411,7 @@ export class StudentsService {
         const newStudent = this.studentsRepository.create({
           ...studentDto,
           studentNumber: finalStudentNumber,
+          className: classEntity.name,
           classId: classEntity.id,
           teacherId
         });

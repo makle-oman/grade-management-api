@@ -34,7 +34,7 @@ export class Student {
   @OneToMany(() => Score, score => score.student)
   scores: Score[];
 
-  @ManyToOne(() => User, user => user.students)
+  @ManyToOne(() => User, user => user.students, { nullable: true })
   @JoinColumn({ name: 'teacher_id' })
-  teacher: User;
+  teacher: User | null;
 }

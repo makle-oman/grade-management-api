@@ -40,7 +40,7 @@ export class Score {
   @JoinColumn({ name: 'exam_id' })
   exam: Exam;
   
-  @ManyToOne(() => User, user => user.scores)
+  @ManyToOne(() => User, user => user.scores, { nullable: true })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: User | null;
 }

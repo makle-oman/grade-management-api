@@ -9,9 +9,9 @@ export class CreateStudentDto {
   @IsString({ message: '学号必须是字符串' })
   studentNumber: string;
 
-  @IsNotEmpty({ message: '班级不能为空' })
+  @IsOptional()
   @IsString({ message: '班级必须是字符串' })
-  className: string;
+  className?: string;
 
   @IsOptional()
   @IsNumber({}, { message: '班级ID必须是数字' })

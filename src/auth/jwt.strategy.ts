@@ -20,8 +20,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     const user = await this.authService.findById(payload.sub);
     
+    if (!user) {
+      return null;
+    }
+    
     // 确保 classNames 是数组
-    let classNames = payload.classNames;
+    let classNames = user.classNames || payload.classNames;
     if (classNames && !Array.isArray(classNames)) {
       try {
         if (typeof classNames === 'string') {
@@ -33,13 +37,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     
     return {
-      userId: payload.sub,
-      username: payload.username,
-      role: payload.role,
-      gradeLevel: payload.gradeLevel,
-      subject: payload.subject,
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      gradeLevel: user.gradeLevel,
+      subject: user.subject,
       classNames: classNames || [],
-      id: payload.sub,  // 添加id字段以保持一致性
+      id: user.id,
+      name: user.name,
       user: user
     };
   }

@@ -14,9 +14,10 @@ export class ClassesController {
 
   @Post()
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.GRADE_LEADER)
-  create(@Body() createClassDto: CreateClassDto) {
-    return this.classesService.create(createClassDto);
+  @Roles(UserRole.ADMIN, UserRole.GRADE_LEADER, UserRole.TEACHER)
+  create(@Body() createClassDto: CreateClassDto, @Request() req) {
+    const { userId } = req.user;
+    return this.classesService.create(createClassDto, userId);
   }
 
   @Get()
@@ -38,23 +39,20 @@ export class ClassesController {
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.GRADE_LEADER)
-  update(@Param('id') id: string, @Body() updateClassDto: UpdateClassDto) {
-    return this.classesService.update(+id, updateClassDto);
+  async update(@Param('id') id: string, @Body() updateClassDto: UpdateClassDto, @Request() req) {
+    const { userId, role, classNames } = req.user;
+    return this.classesService.update(+id, updateClassDto, userId, role, classNames);
   }
 
   @Patch(':id/toggle-active')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.GRADE_LEADER)
-  toggleActive(@Param('id') id: string) {
-    return this.classesService.toggleActive(+id);
+  async toggleActive(@Param('id') id: string, @Request() req) {
+    const { userId, role, classNames } = req.user;
+    return this.classesService.toggleActive(+id, userId, role, classNames);
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.GRADE_LEADER)
-  remove(@Param('id') id: string) {
-    return this.classesService.remove(+id);
+  async remove(@Param('id') id: string, @Request() req) {
+    const { userId, role, classNames } = req.user;
+    return this.classesService.remove(+id, userId, role, classNames);
   }
 }

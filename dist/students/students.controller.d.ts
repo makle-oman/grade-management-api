@@ -15,7 +15,7 @@ export declare class StudentsController {
     update(id: string, updateStudentDto: UpdateStudentDto, req: any): Promise<Student>;
     remove(id: string, req: any): Promise<void>;
     batchRemove(ids: string, req: any): Promise<void>;
-    importMany(students: CreateStudentDto[], req: any): Promise<Student[]>;
+    importMany(students: CreateStudentDto[], req: any, classId?: string): Promise<Student[]>;
     batchAssociateClasses(): Promise<{
         message: string;
         updated: number;

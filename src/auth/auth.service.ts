@@ -18,28 +18,121 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // 导入班级名称工具函数
+  private normalizeClassName(className: string): string {
+    // 从 classNameUtils.ts 中提取的标准化班级名称函数
+    if (!className) return '';
+    
+    const { grade, classNumber } = this.parseClassName(className);
+    const gradeInChinese = this.getGradeName(grade).replace('年级', '');
+    return `${gradeInChinese}（${classNumber}）班`;
+  }
+
+  private parseClassName(className: string): { grade: number; classNumber: number } {
+    if (!className) return { grade: 1, classNumber: 1 };
+    
+    const trimmed = className.trim();
+    
+    // 支持多种格式的正则表达式
+    const patterns = [
+      /^(\d+)-(\d+)$/, // 1-2 格式
+      /^\((\d+)\)\s*班$/, // (1) 班 格式
+      /^([一二三四五六七八九十])（(\d+)）班$/, // 一（1）班 格式
+      /^([一二三四五六七八九十])年级(\d+)班$/, // 一年级1班 格式
+      /^(\d+)年级(\d+)班$/, // 1年级1班 格式
+      /^(\d+)班$/, // 1班 格式
+    ];
+
+    const chineseNumbers: { [key: string]: number } = {
+      '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6,
+      '七': 7, '八': 8, '九': 9, '十': 10
+    };
+
+    for (const pattern of patterns) {
+      const match = trimmed.match(pattern);
+      if (match) {
+        let grade: number;
+        let classNumber: number;
+        
+        if (pattern.source === '^(\\d+)-(\\d+)$') {
+          // 1-2 格式
+          grade = parseInt(match[1]);
+          classNumber = parseInt(match[2]);
+        } else if (pattern.source === '^\\((\\d+)\\)\\s*班$') {
+          // (1) 班 格式，默认为一年级
+          grade = 1;
+          classNumber = parseInt(match[1]);
+        } else if (pattern.source === '^([一二三四五六七八九十])（(\\d+)）班$') {
+          // 一（1）班 格式
+          grade = chineseNumbers[match[1]] || 1;
+          classNumber = parseInt(match[2]);
+        } else if (pattern.source === '^([一二三四五六七八九十])年级(\\d+)班$') {
+          // 一年级1班 格式
+          grade = chineseNumbers[match[1]] || 1;
+          classNumber = parseInt(match[2]);
+        } else if (pattern.source === '^(\\d+)年级(\\d+)班$') {
+          // 1年级1班 格式
+          grade = parseInt(match[1]);
+          classNumber = parseInt(match[2]);
+        } else if (pattern.source === '^(\\d+)班$') {
+          // 1班 格式，默认为一年级
+          grade = 1;
+          classNumber = parseInt(match[1]);
+        }
+        
+        return { grade: grade || 1, classNumber: classNumber || 1 };
+      }
+    }
+
+    // 默认返回
+    return { grade: 1, classNumber: 1 };
+  }
+
+  private getGradeName(grade: number): string {
+    const gradeNames: { [key: number]: string } = {
+      1: '一年级',
+      2: '二年级', 
+      3: '三年级',
+      4: '四年级',
+      5: '五年级',
+      6: '六年级',
+      7: '七年级',
+      8: '八年级',
+      9: '九年级'
+    };
+    
+    return gradeNames[grade] || `${grade}年级`;
+  }
+
   // 根据班级名称查找或创建班级
-  private async findOrCreateClass(className: string): Promise<Class> {
+  private async findOrCreateClass(className: string, creatorName?: string): Promise<Class> {
+    // 使用工具函数标准化班级名称
+    const normalizedClassName = this.normalizeClassName(className);
+    
     // 先查找是否已存在该班级
     let classEntity = await this.classRepository.findOne({
-      where: { name: className }
+      where: { name: normalizedClassName }
     });
 
     if (!classEntity) {
       // 如果不存在，则创建新班级
-      // 从班级名称中提取年级信息，如"六（2）班" -> "六年级"
-      const gradeMatch = className.match(/^([一二三四五六七八九十]+)/);
-      const grade = gradeMatch ? `${gradeMatch[1]}年级` : '未知年级';
+      // 从班级名称中提取年级信息
+      const { grade } = this.parseClassName(normalizedClassName);
+      const gradeName = this.getGradeName(grade);
+      
+      const description = creatorName 
+        ? `${creatorName}创建的班级：${normalizedClassName}`
+        : `注册用户创建的班级：${normalizedClassName}`;
       
       classEntity = this.classRepository.create({
-        name: className,
-        grade: grade,
-        description: `注册时自动创建的班级：${className}`,
+        name: normalizedClassName,
+        grade: gradeName,
+        description: description,
         isActive: true
       });
       
       classEntity = await this.classRepository.save(classEntity);
-      console.log(`注册时自动创建班级: ${className} (ID: ${classEntity.id})`);
+      console.log(`注册时自动创建班级: ${normalizedClassName} (ID: ${classEntity.id})`);
     }
 
     return classEntity;
@@ -120,18 +213,28 @@ export class AuthService {
       throw new UnauthorizedException('用户名或邮箱已存在');
     }
 
-    // 如果用户选择了班级，自动创建这些班级
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    
+    // 处理班级名称格式转换
+    let processedClassNames = null;
+    let normalizedClassNames = [];
+    
     if (registerDto.classNames && registerDto.classNames.length > 0) {
-      for (const className of registerDto.classNames) {
+      // 保存标准化的班级名称，用于创建班级记录
+      normalizedClassNames = registerDto.classNames.map(className => this.normalizeClassName(className));
+      
+      // 将班级名称标准化后存储
+      processedClassNames = JSON.stringify(normalizedClassNames);
+      
+      // 为每个班级创建班级记录
+      for (const className of normalizedClassNames) {
         try {
-          await this.findOrCreateClass(className);
+          await this.findOrCreateClass(className, registerDto.name);
         } catch (error) {
           console.error(`注册时创建班级 ${className} 失败:`, error.message);
         }
       }
     }
-
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
     
     // 创建用户实例
     const user = this.userRepository.create({
@@ -141,7 +244,7 @@ export class AuthService {
       name: registerDto.name,
       role: registerDto.role,
       subject: registerDto.subject,
-      classNames: registerDto.classNames ? JSON.stringify(registerDto.classNames) : null
+      classNames: processedClassNames
     });
 
     const savedUser = await this.userRepository.save(user);

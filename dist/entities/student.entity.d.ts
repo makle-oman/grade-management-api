@@ -11,5 +11,5 @@ export declare class Student {
     teacherId: string;
     createdAt: Date;
     scores: Score[];
-    teacher: User;
+    teacher: User | null;
 }

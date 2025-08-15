@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Student } from './student.entity';
+import { User } from './user.entity';
 
 @Entity('classes')
 export class Class {
@@ -17,6 +18,13 @@ export class Class {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ name: 'created_by', nullable: true })
+  createdBy: string;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'created_by' })
+  creator: User;
 
   @OneToMany(() => Student, student => student.class)
   students: Student[];

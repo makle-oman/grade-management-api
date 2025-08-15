@@ -41,9 +41,9 @@ export class Exam {
   @OneToMany(() => Score, score => score.exam)
   scores: Score[];
 
-  @ManyToOne(() => User, user => user.exams)
+  @ManyToOne(() => User, user => user.exams, { nullable: true })
   @JoinColumn({ name: 'teacher_id' })
-  teacher: User;
+  teacher: User | null;
 
   @ManyToOne(() => Semester, semester => semester.exams)
   @JoinColumn({ name: 'semester_id' })

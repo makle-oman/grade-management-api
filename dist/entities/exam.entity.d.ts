@@ -14,6 +14,6 @@ export declare class Exam {
     semesterId: string;
     createdAt: Date;
     scores: Score[];
-    teacher: User;
+    teacher: User | null;
     semester: Semester;
 }

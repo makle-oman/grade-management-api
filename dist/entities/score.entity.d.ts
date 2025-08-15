@@ -13,5 +13,5 @@ export declare class Score {
     updatedAt: Date;
     student: Student;
     exam: Exam;
-    user: User;
+    user: User | null;
 }
