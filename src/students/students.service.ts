@@ -162,14 +162,33 @@ export class StudentsService {
   async findAll(userId?: string, userRole?: UserRole, userClassNames?: string[]): Promise<Student[]> {
     // 根据用户角色过滤数据
     if (userRole === UserRole.TEACHER) {
-      // 普通教师只能看到自己创建的学生
-      const results = await this.studentsRepository.find({
-        where: { teacherId: userId },
+      // 普通教师可以看到自己负责班级的所有学生和自己创建的学生
+      const allStudents = await this.studentsRepository.find({
         relations: ['teacher', 'class'],
         order: { studentNumber: 'ASC' },
       });
       
-      return results.filter(student => !student.class || student.class.isActive);
+      // 过滤条件：学生在教师负责的班级中，或者是教师创建的学生
+      const filteredStudents = allStudents.filter(student => {
+        // 过滤掉停用班级的学生
+        if (student.class && !student.class.isActive) {
+          return false;
+        }
+        
+        // 如果是教师创建的学生，直接包含
+        if (student.teacherId === userId) {
+          return true;
+        }
+        
+        // 如果学生在教师负责的班级中，也包含
+        if (student.class && userClassNames && userClassNames.includes(student.class.name)) {
+          return true;
+        }
+        
+        return false;
+      });
+      
+      return filteredStudents;
       
     } else if (userRole === UserRole.GRADE_LEADER || userRole === UserRole.ADMIN) {
       // 管理员和年级组长可以看到所有数据
@@ -218,13 +237,16 @@ export class StudentsService {
     
     // 权限检查
     if (userRole === UserRole.TEACHER) {
-      if (userClassNames && !userClassNames.includes(className)) {
+      if (userClassNames && userClassNames.includes(className)) {
+        // 如果教师负责这个班级，可以看到该班级的所有学生
+        return classStudents;
+      } else {
         // 如果教师没有负责这个班级，则只能看到自己创建的学生
         return classStudents.filter(student => student.teacherId === userId);
       }
     }
 
-    // 管理员、年级组长或负责该班级的教师可以看到该班级的所有学生
+    // 管理员、年级组长可以看到该班级的所有学生
     return classStudents;
   }
 
