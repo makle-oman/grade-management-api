@@ -18,12 +18,8 @@ export class ExamsService {
     
     // 根据用户角色过滤数据
     if (userRole === UserRole.TEACHER) {
-      // 普通教师只能看到自己的考试
-      if (userClassNames?.length > 0) {
-        whereCondition = { className: In(userClassNames) };
-      } else {
-        whereCondition = { teacherId: userId };
-      }
+      // 普通教师只能看到自己创建的考试
+      whereCondition = { teacherId: userId };
     }
     // 管理员和年级组长可以看到所有数据，不添加额外的where条件
 
@@ -53,13 +49,17 @@ export class ExamsService {
   }
 
   async findByClass(className: string, userId?: string, userRole?: UserRole, userClassNames?: string[]): Promise<Exam[]> {
-    // 权限检查
-    if (userRole === UserRole.TEACHER && userClassNames && !userClassNames.includes(className)) {
-      throw new ForbiddenException('您没有权限访问此班级考试信息');
+    let whereCondition: any = { className };
+    
+    // 根据用户角色过滤数据
+    if (userRole === UserRole.TEACHER) {
+      // 普通教师只能看到自己在该班级创建的考试
+      whereCondition.teacherId = userId;
     }
+    // 管理员和年级组长可以看到该班级的所有考试
 
     return this.examsRepository.find({
-      where: { className },
+      where: whereCondition,
       relations: ['teacher', 'semester'],
       order: { examDate: 'DESC' },
     });
@@ -78,12 +78,8 @@ export class ExamsService {
     
     // 根据用户角色过滤数据
     if (userRole === UserRole.TEACHER) {
-      // 普通教师只能看到自己的考试
-      if (userClassNames?.length > 0) {
-        whereCondition.className = In(userClassNames);
-      } else {
-        whereCondition.teacherId = userId;
-      }
+      // 普通教师只能看到自己创建的考试
+      whereCondition.teacherId = userId;
     }
     // 管理员和年级组长可以看到所有数据，不添加额外的where条件
 
