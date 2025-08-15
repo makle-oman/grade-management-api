@@ -52,6 +52,13 @@ export class UsersController {
     return this.usersService.toggleActive(id);
   }
 
+  @Patch(':id/reset-password')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  resetPassword(@Param('id') id: string) {
+    return this.usersService.resetPassword(id);
+  }
+
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

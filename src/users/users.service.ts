@@ -97,4 +97,18 @@ export class UsersService {
     await this.userRepository.save(user);
     return user;
   }
+
+  async resetPassword(id: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 将密码重置为888888并加密
+    const hashedPassword = await bcrypt.hash('888888', 10);
+    await this.userRepository.update(id, { password: hashedPassword });
+    
+    return { message: '密码已重置为888888' };
+  }
 }
