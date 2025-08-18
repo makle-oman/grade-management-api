@@ -226,13 +226,18 @@ export class AuthService {
       // 将班级名称标准化后存储
       processedClassNames = JSON.stringify(normalizedClassNames);
       
-      // 为每个班级创建班级记录
-      for (const className of normalizedClassNames) {
-        try {
-          await this.findOrCreateClass(className, registerDto.name);
-        } catch (error) {
-          console.error(`注册时创建班级 ${className} 失败:`, error.message);
+      // 只有当角色是教师时才创建班级记录
+      if (registerDto.role === 'teacher') {
+        // 为每个班级创建班级记录
+        for (const className of normalizedClassNames) {
+          try {
+            await this.findOrCreateClass(className, registerDto.name);
+          } catch (error) {
+            console.error(`注册时创建班级 ${className} 失败:`, error.message);
+          }
         }
+      } else {
+        console.log(`用户 ${registerDto.username} 是年级组长，跳过创建班级`);
       }
     }
     

@@ -60,6 +60,18 @@ export class StatisticsController {
     return this.statisticsService.getStudentStatistics(studentId, semesterId, userId, role);
   }
 
+  @Get('grade-analysis')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.GRADE_LEADER)
+  async getGradeAnalysis(
+    @Query('semesterId') semesterId: string,
+    @Query('gradeLevel') gradeLevel: string,
+    @Request() req
+  ) {
+    const { userId, role } = req.user;
+    return this.statisticsService.getGradeAnalysis(semesterId, gradeLevel, userId, role);
+  }
+
   @Get('subject/:subject')
   async getSubjectStatistics(
     @Param('subject') subject: string,

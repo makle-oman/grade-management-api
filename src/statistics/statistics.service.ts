@@ -465,6 +465,216 @@ export class StatisticsService {
     }
   }
 
+  async getGradeAnalysis(
+    semesterId: string,
+    gradeLevel: string,
+    userId?: string,
+    userRole?: UserRole
+  ) {
+    try {
+      this.logger.log(`获取年级分析: semesterId=${semesterId}, gradeLevel=${gradeLevel}, userId=${userId}, userRole=${userRole}`);
+      
+      // 只有管理员和年级组长可以查看年级分析
+      if (userRole !== UserRole.ADMIN && userRole !== UserRole.GRADE_LEADER) {
+        this.logger.warn(`权限不足: userId=${userId}, userRole=${userRole}`);
+        throw new ForbiddenException('您没有权限查看年级分析');
+      }
+      
+      // 将数字年级转换为中文年级名称
+      let gradeName: string;
+      switch (gradeLevel) {
+        case '1': gradeName = '一年级'; break;
+        case '2': gradeName = '二年级'; break;
+        case '3': gradeName = '三年级'; break;
+        case '4': gradeName = '四年级'; break;
+        case '5': gradeName = '五年级'; break;
+        case '6': gradeName = '六年级'; break;
+        default: gradeName = `${gradeLevel}年级`;
+      }
+      
+      this.logger.log(`查找年级: ${gradeName}`);
+      
+      // 直接获取该学期的所有考试
+      const allExams = await this.examRepository.createQueryBuilder('exam')
+        .leftJoinAndSelect('exam.semester', 'semester')
+        .leftJoinAndSelect('exam.teacher', 'teacher')
+        .where('exam.semesterId = :semesterId', { semesterId })
+        .getMany();
+      
+      this.logger.log(`找到 ${allExams.length} 个考试记录`);
+      
+      if (allExams.length === 0) {
+        this.logger.warn(`未找到相关考试: semesterId=${semesterId}`);
+        throw new NotFoundException(`未找到当前学期的考试数据`);
+      }
+      
+      // 过滤出指定年级的考试
+      // 班级名称可能是多种格式：1班、一班、1-1班、一年级1班等
+      const exams = allExams.filter(exam => {
+        const className = exam.className || '';
+        
+        // 检查班级名称是否包含年级信息
+        if (gradeLevel === '1') {
+          return className.includes('1年级') || 
+                 className.includes('一年级') || 
+                 className.startsWith('1班') || 
+                 className.startsWith('1-') || 
+                 className.startsWith('一班') ||
+                 className === '1' ||
+                 className === '一' ||
+                 className.includes('一(') ||
+                 className.includes('一（');
+        } else if (gradeLevel === '2') {
+          return className.includes('2年级') || 
+                 className.includes('二年级') || 
+                 className.startsWith('2班') || 
+                 className.startsWith('2-') || 
+                 className.startsWith('二班') ||
+                 className === '2' ||
+                 className === '二' ||
+                 className.includes('二(') ||
+                 className.includes('二（');
+        } else if (gradeLevel === '3') {
+          return className.includes('3年级') || 
+                 className.includes('三年级') || 
+                 className.startsWith('3班') || 
+                 className.startsWith('3-') || 
+                 className.startsWith('三班') ||
+                 className === '3' ||
+                 className === '三' ||
+                 className.includes('三(') ||
+                 className.includes('三（');
+        } else if (gradeLevel === '4') {
+          return className.includes('4年级') || 
+                 className.includes('四年级') || 
+                 className.startsWith('4班') || 
+                 className.startsWith('4-') || 
+                 className.startsWith('四班') ||
+                 className === '4' ||
+                 className === '四' ||
+                 className.includes('四(') ||
+                 className.includes('四（');
+        } else if (gradeLevel === '5') {
+          return className.includes('5年级') || 
+                 className.includes('五年级') || 
+                 className.startsWith('5班') || 
+                 className.startsWith('5-') || 
+                 className.startsWith('五班') ||
+                 className === '5' ||
+                 className === '五' ||
+                 className.includes('五(') ||
+                 className.includes('五（');
+        } else if (gradeLevel === '6') {
+          return className.includes('6年级') || 
+                 className.includes('六年级') || 
+                 className.startsWith('6班') || 
+                 className.startsWith('6-') || 
+                 className.startsWith('六班') ||
+                 className === '6' ||
+                 className === '六' ||
+                 className.includes('六(') ||
+                 className.includes('六（');
+        }
+        return false;
+      });
+      
+      this.logger.log(`过滤后找到 ${exams.length} 个${gradeName}的考试记录`);
+      
+      if (exams.length === 0) {
+        this.logger.warn(`未找到相关考试: semesterId=${semesterId}, gradeLevel=${gradeLevel}`);
+        throw new NotFoundException(`未找到${gradeName}在当前学期的考试数据`);
+      }
+      
+      // 获取所有班级名称（从考试记录中提取）
+      const classNames = [...new Set(exams.map(exam => exam.className))];
+      this.logger.log(`考试中的班级: ${classNames.join(', ')}`);
+      
+      // 获取所有考试的成绩
+      const examIds = exams.map(exam => exam.id);
+      const scores = await this.scoreRepository.find({
+        where: { examId: In(examIds) },
+        relations: ['student', 'exam']
+      });
+      
+      // 计算年级总体统计
+      const validScores = scores.filter(score => !score.isAbsent && score.score !== null);
+      const totalStudents = [...new Set(scores.map(score => score.studentId))].length;
+      const gradeAverage = validScores.length > 0
+        ? Math.round((validScores.reduce((sum, score) => sum + score.score, 0) / validScores.length) * 100) / 100
+        : 0;
+      
+      // 计算优秀率（85分以上）
+      const excellentCount = validScores.filter(score => score.score >= 85).length;
+      const excellentRate = validScores.length > 0
+        ? Math.round((excellentCount / validScores.length) * 10000) / 100
+        : 0;
+      
+      // 按班级分组统计
+      const classComparison = [];
+      
+      for (const className of classNames) {
+        // 获取该班级的所有考试
+        const classExams = exams.filter(exam => exam.className === className);
+        
+        if (classExams.length === 0) continue;
+        
+        // 获取该班级的所有成绩
+        const classExamIds = classExams.map(exam => exam.id);
+        const classScores = scores.filter(score => classExamIds.includes(score.examId));
+        const validClassScores = classScores.filter(score => !score.isAbsent && score.score !== null);
+        
+        // 计算班级平均分
+        const classAverage = validClassScores.length > 0
+          ? Math.round((validClassScores.reduce((sum, score) => sum + score.score, 0) / validClassScores.length) * 100) / 100
+          : 0;
+        
+        // 计算班级优秀率和及格率
+        const classExcellentCount = validClassScores.filter(score => score.score >= 85).length;
+        const classPassCount = validClassScores.filter(score => score.score >= 60).length;
+        
+        const classExcellentRate = validClassScores.length > 0
+          ? Math.round((classExcellentCount / validClassScores.length) * 10000) / 100
+          : 0;
+        
+        const classPassRate = validClassScores.length > 0
+          ? Math.round((classPassCount / validClassScores.length) * 10000) / 100
+          : 0;
+        
+        // 计算进步情况（与上次考试相比）
+        // 这里简化处理，实际应该比较同一科目的前后考试
+        let improvement = 0;
+        
+        // 获取班主任信息
+        const teacher = classExams[0]?.teacher?.name || '-';
+        
+        // 获取学生数量
+        const studentCount = [...new Set(classScores.map(score => score.studentId))].length;
+        
+        classComparison.push({
+          className,
+          teacher,
+          studentCount,
+          averageScore: classAverage,
+          excellentRate: classExcellentRate,
+          passRate: classPassRate,
+          improvement
+        });
+      }
+
+      return {
+        gradeName,
+        totalClasses: classNames.length,
+        totalStudents,
+        gradeAverage,
+        excellentRate,
+        classComparison: classComparison.sort((a, b) => b.averageScore - a.averageScore)
+      };
+    } catch (error) {
+      this.logger.error(`获取年级分析失败: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   async getSubjectStatistics(
     subject: string,
     semesterId?: string,
