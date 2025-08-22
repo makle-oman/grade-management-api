@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { PerformanceMiddleware } from './common/middleware/performance.middleware';
 import { join, resolve } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 

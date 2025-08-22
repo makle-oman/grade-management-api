@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Score } from '../entities/score.entity';
 import { Exam } from '../entities/exam.entity';
 import { Student } from '../entities/student.entity';
@@ -55,7 +57,30 @@ export class StatisticsService {
     private examRepository: Repository<Exam>,
     @InjectRepository(Student)
     private studentRepository: Repository<Student>,
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache,
   ) {}
+
+  private getCacheKey(prefix: string, ...params: string[]): string {
+    return `${prefix}:${params.join(':')}`;
+  }
+
+  private async getCachedData<T>(key: string, ttl: number = 300): Promise<T | null> {
+    try {
+      return await this.cacheManager.get<T>(key);
+    } catch (error) {
+      this.logger.warn(`缓存获取失败: ${error.message}`);
+      return null;
+    }
+  }
+
+  private async setCachedData<T>(key: string, data: T, ttl: number = 300): Promise<void> {
+    try {
+      await this.cacheManager.set(key, data, ttl);
+    } catch (error) {
+      this.logger.warn(`缓存设置失败: ${error.message}`);
+    }
+  }
 
   async getExamStatistics(
     examId: string,
