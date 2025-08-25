@@ -19,6 +19,11 @@ async function bootstrap() {
   app.enableCors();
   app.useStaticAssets(join(resolve(), 'public'));
   
+  // 添加通配符路由处理，将所有/web/*请求重定向到/web/index.html
+  app.use('/web/*', (req, res) => {
+    res.sendFile(join(resolve(), 'public', 'web', 'index.html'));
+  });
+  
   await app.listen(3000);
   console.log(`应用已启动: http://localhost:3000`);
 }
